@@ -9,22 +9,62 @@ function buildVarMap(sections: PageSection[]): Record<string, string> {
   const m: Record<string, string> = {}
   for (const s of sections) {
     const c = s.content
-    if (s.type === 'header')  { m['clinicName'] = c.clinicName ?? '' }
-    if (s.type === 'topbar')  { m['tagline']    = c.text ?? '' }
-    if (s.type === 'hero')    {
-      m['heroTitle']    = c.title ?? ''
+    if (s.type === 'header') {
+      m['clinicName'] = c.logoText ?? c.clinicName ?? ''
+      m['headerPhone'] = c.phone ?? ''
+    }
+    if (s.type === 'topbar') {
+      m['tagline'] = c.marqueeText ?? c.text ?? ''
+      m['scrollSpeed'] = String(Math.max(10, c.speed ?? 40))
+    }
+    if (s.type === 'hero') {
+      m['heroTitle']    = c.title    ?? ''
       m['heroSubtitle'] = c.subtitle ?? ''
-      m['ctaText']      = c.ctaText ?? ''
+      m['ctaText']      = c.ctaText  ?? ''
+      m['ctaText2']     = c.ctaText2 ?? ''
+    }
+    if (s.type === 'concept') {
+      m['conceptSubtitle'] = c.subtitle ?? ''
+      m['conceptTitle']    = c.title    ?? ''
+      m['conceptBody']     = c.body     ?? ''
+    }
+    if (s.type === 'features') {
+      m['featuresTitle'] = c.title ?? ''
+    }
+    if (s.type === 'services') {
+      m['servicesTitle'] = c.title ?? ''
+      m['servicesItems'] = c.items ?? ''
     }
     if (s.type === 'staff') {
-      m['staffName']    = c.staffName    ?? ''
-      m['staffTitle']   = c.staffTitle   ?? ''
-      m['staffMessage'] = c.staffMessage ?? ''
+      m['staffSectionSubtitle'] = c.subtitle         ?? ''
+      m['staffSectionTitle']    = c.title            ?? ''
+      m['staffName']            = c.staffName        ?? ''
+      m['staffTitle']           = c.staffTitle       ?? ''
+      m['staffCredentials']     = c.staffCredentials ?? ''
+      m['staffMessage']         = c.staffMessage     ?? ''
+    }
+    if (s.type === 'gallery') {
+      m['galleryTitle'] = c.title ?? ''
     }
     if (s.type === 'contact') {
-      m['address'] = c.address ?? ''
-      m['phone']   = c.phone   ?? ''
-      m['hours']   = c.hours   ?? ''
+      m['contactTitle'] = c.title   ?? ''
+      m['address']      = c.address ?? ''
+      m['access']       = c.access  ?? ''
+      m['phone']        = c.phone   ?? ''
+      m['hours']        = c.hours   ?? ''
+    }
+    if (s.type === 'cta_banner') {
+      m['ctaBannerTitle']    = c.title    ?? ''
+      m['ctaBannerSubtitle'] = c.subtitle ?? ''
+      m['ctaBannerCta']      = c.ctaText  ?? ''
+      m['ctaBannerPhone']    = c.phone    ?? ''
+    }
+    if (s.type === 'footer') {
+      m['footerClinicName'] = c.clinicName ?? ''
+      m['footerAddress']    = c.address   ?? ''
+      m['footerPhone']      = c.phone     ?? ''
+      m['footerHours']      = c.hours     ?? ''
+      m['footerCopyright']  = c.copyright ?? ''
     }
   }
   return m
@@ -189,6 +229,55 @@ function SectionRender({
   else if (section.bg === 'accent')                               bg = t.accent
   else if (section.bg === 'dark')                                 bg = t.footerBg
 
+  // Topbar: render as scrolling marquee using clinic's marqueeText + speed
+  if (section.sectionType === 'topbar') {
+    const text     = vars['tagline'] || '新患受付中 | お気軽にご連絡ください'
+    const duration = vars['scrollSpeed'] || '40'
+    return (
+      <div className="overflow-hidden py-2 text-sm font-medium" style={{ background: bg, color: t.topbarText }}>
+        <style>{`@keyframes lp-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
+        <div className="inline-flex" style={{ whiteSpace: 'nowrap', animation: `lp-scroll ${duration}s linear infinite` }}>
+          {[0, 1, 2, 3].map(i => <span key={i} className="px-10">{text}</span>)}
+        </div>
+      </div>
+    )
+  }
+
+  if (section.sectionType === 'gallery') {
+    const galleryImgs = Object.entries(images)
+      .filter(([k]) => k.startsWith('gallery-'))
+      .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+      .map(([, v]) => v)
+      .filter(Boolean)
+    if (galleryImgs.length === 0) return null
+    const gridClass =
+      galleryImgs.length === 1 ? 'grid-cols-1 max-w-lg mx-auto' :
+      galleryImgs.length === 2 ? 'grid-cols-2 max-w-2xl mx-auto' :
+      galleryImgs.length === 4 ? 'grid-cols-2 md:grid-cols-2' :
+      'grid-cols-2 md:grid-cols-3'
+    const hasFeature = galleryImgs.length === 3 || galleryImgs.length === 5
+    return (
+      <div className="py-20 px-6" style={{ background: bg }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: t.accent }}>Gallery</p>
+            <h2 className="text-3xl font-bold text-gray-900">{vars['galleryTitle'] || '院内のご案内'}</h2>
+          </div>
+          <div className={`grid ${gridClass} gap-4`}>
+            {galleryImgs.map((url, i) => (
+              <div
+                key={i}
+                className={['rounded-xl overflow-hidden shadow-sm', hasFeature && i === 0 ? 'col-span-2 aspect-[16/7]' : 'aspect-video'].join(' ')}
+              >
+                <img src={url} alt={`gallery-${i + 1}`} className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const py = PY_MAP[section.py] ?? '48px'
 
   return (
@@ -233,11 +322,16 @@ export function FreeTemplateRenderer({
   const images = buildImageMap(sections)
   const font   = FONT_CSS[template.fontFamily] ?? FONT_CSS['noto-sans']
 
+  // Build a set of hidden section types from the clinic's sections array
+  const hiddenTypes = new Set(sections.filter(s => !s.visible).map(s => s.type))
+
   return (
     <div style={{ fontFamily: font }}>
-      {template.sections.map(section => (
-        <SectionRender key={section.id} section={section} vars={vars} images={images} t={t} showPlaceholders={showPlaceholders} />
-      ))}
+      {template.sections
+        .filter(section => !section.sectionType || !hiddenTypes.has(section.sectionType))
+        .map(section => (
+          <SectionRender key={section.id} section={section} vars={vars} images={images} t={t} showPlaceholders={showPlaceholders} />
+        ))}
     </div>
   )
 }

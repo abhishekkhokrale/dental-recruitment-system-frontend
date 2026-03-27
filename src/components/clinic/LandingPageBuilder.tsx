@@ -776,11 +776,6 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">セクション（ドラッグで並替）</p>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {templateSectionTypes && (
-                <p className="text-xs text-amber-700 bg-amber-50 border-b border-amber-100 px-3 py-2">
-                  テンプレートに含まれるセクションのみ表示しています
-                </p>
-              )}
               {sections.map((section, i) => {
                 if (templateSectionTypes && !templateSectionTypes.has(section.type)) return null
                 const meta = SECTION_META[section.type] ?? { icon: '📦', label: section.type }
