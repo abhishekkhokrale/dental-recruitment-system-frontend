@@ -1,92 +1,91 @@
-import { scryptSync, randomBytes, timingSafeEqual, createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { cookies } from 'next/headers'
-import { findUserById } from './store'
 import type { StoredUser } from './store'
 
 const SESSION_COOKIE = 'bj_session'
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
-// HMAC secret — set SESSION_SECRET env var in production
 const SESSION_SECRET = process.env.SESSION_SECRET ?? 'bluejobs-dev-secret-do-not-use-in-prod'
 
-// ── Password hashing ─────────────────────────────────────────────────────────
+// ── Session payload ───────────────────────────────────────────────────────────
 
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString('hex')
-  const hash = scryptSync(password, salt, 64).toString('hex')
-  return `${salt}:${hash}`
+interface SessionPayload {
+  id: string
+  name: string
+  email: string
+  role: 'seeker' | 'clinic' | 'admin'
+  token: string   // backend JWT
+  expiresAt: number
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hash] = stored.split(':')
-  if (!salt || !hash) return false
-  const supplied = scryptSync(password, salt, 64)
-  return timingSafeEqual(Buffer.from(hash, 'hex'), supplied)
+function sign(data: string): string {
+  return createHmac('sha256', SESSION_SECRET).update(data).digest('hex')
 }
 
-// ── Session management (signed cookie — no in-memory store) ─────────────────
-//
-// Cookie value: base64url(userId:expiresAt) + '.' + hmac-sha256(payload)
-// This survives dev-server HMR full reloads.
+// ── Session management ────────────────────────────────────────────────────────
 
-function _sign(payload: string): string {
-  return createHmac('sha256', SESSION_SECRET).update(payload).digest('hex')
-}
-
-export async function createSession(userId: string): Promise<void> {
-  const expiresAt = Date.now() + SESSION_TTL_MS
-  const payload   = `${userId}:${expiresAt}`
-  const encoded   = Buffer.from(payload).toString('base64url')
-  const sig       = _sign(payload)
-  const token     = `${encoded}.${sig}`
+export async function createSession(payload: Omit<SessionPayload, 'expiresAt'>): Promise<void> {
+  const full: SessionPayload = { ...payload, expiresAt: Date.now() + SESSION_TTL_MS }
+  const encoded = Buffer.from(JSON.stringify(full)).toString('base64url')
+  const sig = sign(encoded)
+  const token = `${encoded}.${sig}`
 
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    path:     '/',
-    maxAge:   SESSION_TTL_MS / 1000,
+    path: '/',
+    maxAge: SESSION_TTL_MS / 1000,
   })
 }
 
-export async function getSession(): Promise<{ userId: string } | null> {
+export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies()
-  const token       = cookieStore.get(SESSION_COOKIE)?.value
-  if (!token) return null
+  const raw = cookieStore.get(SESSION_COOKIE)?.value
+  if (!raw) return null
 
-  const dotIdx = token.lastIndexOf('.')
+  const dotIdx = raw.lastIndexOf('.')
   if (dotIdx === -1) return null
 
-  const encoded = token.substring(0, dotIdx)
-  const sig     = token.substring(dotIdx + 1)
+  const encoded = raw.substring(0, dotIdx)
+  const sig = raw.substring(dotIdx + 1)
 
-  let payload: string
+  const expectedSig = sign(encoded)
+  if (sig.length !== expectedSig.length) return null
+  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null
+
+  let payload: SessionPayload
   try {
-    payload = Buffer.from(encoded, 'base64url').toString()
+    payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
   } catch {
     return null
   }
 
-  // Constant-time signature check
-  const expectedSig = _sign(payload)
-  if (sig.length !== expectedSig.length) return null
-  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null
-
-  // Extract userId and expiry
-  const colonIdx  = payload.lastIndexOf(':')
-  const userId    = payload.substring(0, colonIdx)
-  const expiresAt = parseInt(payload.substring(colonIdx + 1), 10)
-
-  if (!userId || isNaN(expiresAt) || Date.now() > expiresAt) return null
-
-  return { userId }
+  if (!payload.id || !payload.expiresAt || Date.now() > payload.expiresAt) return null
+  return payload
 }
 
-/** Returns the full StoredUser (including role) for the current session. */
+/** Returns a StoredUser-compatible object built from the session cookie (no extra API call). */
 export async function getSessionUser(): Promise<StoredUser | null> {
   const session = await getSession()
   if (!session) return null
-  return findUserById(session.userId)
+
+  return {
+    id: session.id,
+    name: session.name,
+    email: session.email,
+    role: session.role,
+    passwordHash: '',          // not needed on frontend
+    provider: 'email',
+    lineId: null,
+    prefecture: '',
+    qualifications: [],
+    experienceYears: 0,
+    employmentTypes: [],
+    desiredSalaryMin: null,
+    bio: '',
+    createdAt: '',
+  }
 }
 
 export async function deleteSession(): Promise<void> {

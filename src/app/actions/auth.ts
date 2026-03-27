@@ -2,18 +2,14 @@
 
 import { randomBytes } from 'crypto'
 import { redirect } from 'next/navigation'
-import { hashPassword, verifyPassword, createSession, deleteSession } from '@/lib/auth'
-import {
-  findUserByEmail,
-  findUserById,
-  saveUser,
-  appendUserToJson,
-  resetTokenStore,
-} from '@/lib/auth/store'
+import { createSession, deleteSession, getSession } from '@/lib/auth'
+import { findUserById, resetTokenStore, saveUser } from '@/lib/auth/store'
+import { hashPassword } from '@/lib/auth/password'
 import type { UserRole } from '@/lib/auth/store'
-import type { Qualification } from '@/lib/types/seeker'
 
 export type ActionResult = { error?: string; success?: string }
+
+const BACKEND = process.env.BACKEND_URL ?? 'http://localhost:4000'
 
 // Where each role lands after login
 const ROLE_HOME: Record<UserRole, string> = {
@@ -22,7 +18,7 @@ const ROLE_HOME: Record<UserRole, string> = {
   admin:  '/admin',
 }
 
-// ── Login (all roles) ─────────────────────────────────────────────────────────
+// ── Login ─────────────────────────────────────────────────────────────────────
 
 export async function loginAction(
   _prev: ActionResult,
@@ -35,13 +31,38 @@ export async function loginAction(
     return { error: 'メールアドレスとパスワードを入力してください。' }
   }
 
-  const user = findUserByEmail(email)
-  if (!user || !user.passwordHash || !verifyPassword(password, user.passwordHash)) {
-    return { error: 'メールアドレスまたはパスワードが正しくありません。' }
+  let res: Response
+  try {
+    res = await fetch(`${BACKEND}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      cache: 'no-store',
+    })
+  } catch {
+    return { error: 'バックエンドサーバーに接続できません。サーバーが起動しているか確認してください。' }
   }
 
-  await createSession(user.id)
-  redirect(ROLE_HOME[user.role])
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const msg = body?.message ?? 'メールアドレスまたはパスワードが正しくありません。'
+    return { error: Array.isArray(msg) ? msg.join(', ') : msg }
+  }
+
+  const data = await res.json() as {
+    access_token: string
+    user: { id: string; name: string; email: string; role: UserRole }
+  }
+
+  await createSession({
+    id:    data.user.id,
+    name:  data.user.name,
+    email: data.user.email,
+    role:  data.user.role,
+    token: data.access_token,
+  })
+
+  redirect(ROLE_HOME[data.user.role])
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
@@ -51,47 +72,51 @@ export async function logoutAction(): Promise<void> {
   redirect('/login')
 }
 
-// ── Register (seeker only — writes to data/users.json) ───────────────────────
+// ── Register (seeker only) ────────────────────────────────────────────────────
 
 export async function registerAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const name             = String(formData.get('name')             ?? '').trim()
-  const email            = String(formData.get('email')            ?? '').trim()
-  const password         = String(formData.get('password')         ?? '')
-  const prefecture       = String(formData.get('prefecture')       ?? '').trim()
-  const qualifications   = formData.getAll('qualifications')  as Qualification[]
-  const experienceYears  = Number(formData.get('experienceYears')  ?? 0)
-  const employmentTypes  = formData.getAll('employmentTypes')  as string[]
-  const desiredSalaryMin = Number(formData.get('desiredSalaryMin') ?? 0) || null
-  const bio              = String(formData.get('bio')              ?? '').trim()
+  const name     = String(formData.get('name')     ?? '').trim()
+  const email    = String(formData.get('email')    ?? '').trim()
+  const password = String(formData.get('password') ?? '')
 
   if (!name || !email || !password) return { error: '氏名・メールアドレス・パスワードは必須です。' }
   if (password.length < 8)          return { error: 'パスワードは8文字以上で入力してください。' }
-  if (findUserByEmail(email))        return { error: 'このメールアドレスはすでに登録されています。' }
 
-  const newUser = {
-    id: randomBytes(8).toString('hex'),
-    name,
-    email,
-    passwordHash: hashPassword(password),
-    role: 'seeker' as const,
-    prefecture,
-    qualifications,
-    experienceYears,
-    employmentTypes,
-    desiredSalaryMin,
-    bio,
-    provider: 'email' as const,
-    lineId: null,
-    createdAt: new Date().toISOString(),
+  let res: Response
+  try {
+    res = await fetch(`${BACKEND}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, role: 'seeker' }),
+      cache: 'no-store',
+    })
+  } catch {
+    return { error: 'バックエンドサーバーに接続できません。サーバーが起動しているか確認してください。' }
   }
 
-  saveUser(newUser)
-  appendUserToJson(newUser)   // ← persists to data/users.json
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const msg = body?.message ?? '登録に失敗しました。'
+    if (res.status === 409) return { error: 'このメールアドレスはすでに登録されています。' }
+    return { error: Array.isArray(msg) ? msg.join(', ') : msg }
+  }
 
-  await createSession(newUser.id)
+  const data = await res.json() as {
+    access_token: string
+    user: { id: string; name: string; email: string; role: UserRole }
+  }
+
+  await createSession({
+    id:    data.user.id,
+    name:  data.user.name,
+    email: data.user.email,
+    role:  data.user.role,
+    token: data.access_token,
+  })
+
   redirect('/jobs')
 }
 
@@ -106,7 +131,7 @@ export async function forgotPasswordAction(
   const email = String(formData.get('email') ?? '').trim()
   if (!email) return { error: 'メールアドレスを入力してください。' }
 
-  const user = findUserByEmail(email)
+  const user = findUserById(email) // graceful no-op if not in local store
   if (user) {
     const token = randomBytes(32).toString('hex')
     resetTokenStore.set(token, { userId: user.id, expiresAt: Date.now() + RESET_TTL_MS })
@@ -126,9 +151,9 @@ export async function resetPasswordAction(
   const password = String(formData.get('password') ?? '')
   const confirm  = String(formData.get('confirm')  ?? '')
 
-  if (!token)                    return { error: '無効なリセットリンクです。' }
-  if (password.length < 8)       return { error: 'パスワードは8文字以上で入力してください。' }
-  if (password !== confirm)      return { error: 'パスワードが一致しません。' }
+  if (!token)               return { error: '無効なリセットリンクです。' }
+  if (password.length < 8)  return { error: 'パスワードは8文字以上で入力してください。' }
+  if (password !== confirm)  return { error: 'パスワードが一致しません。' }
 
   const record = resetTokenStore.get(token)
   if (!record || Date.now() > record.expiresAt) {
@@ -141,6 +166,7 @@ export async function resetPasswordAction(
   saveUser({ ...user, passwordHash: hashPassword(password) })
   resetTokenStore.delete(token)
 
-  await createSession(user.id)
-  redirect(ROLE_HOME[user.role])
+  const session = await getSession()
+  if (session) redirect(ROLE_HOME[session.role])
+  redirect('/login')
 }
