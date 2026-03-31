@@ -7,7 +7,8 @@ import {
   type ColLayout, TEMPLATE_VARS, IMAGE_SLOTS,
 } from '@/lib/templateStorage'
 import { FreeTemplateRenderer } from '@/components/clinic/FreeTemplateRenderer'
-import { THEMES } from '@/components/clinic/LandingPageRenderer'
+import { loadAllThemes } from '@/lib/themeStorage'
+import type { LPTheme } from '@/components/clinic/LandingPageRenderer'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -522,10 +523,16 @@ export default function AdminTemplatesPage() {
   const dragBlockRef = useRef<{ sectionId: string; colId: string; blockId: string } | null>(null)
   const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null)
 
-  const previewTheme = THEMES.clean
+  const [previewTheme, setPreviewTheme] = useState<LPTheme | null>(null)
 
   useEffect(() => {
     loadAllTemplates().then(setTemplates).catch(() => {})
+    loadAllThemes()
+      .then(themes => {
+        const first = Object.values(themes)[0]
+        if (first) setPreviewTheme(first)
+      })
+      .catch(() => {})
   }, [])
 
   const isEditing = editMode
@@ -830,7 +837,7 @@ export default function AdminTemplatesPage() {
               <div className="bg-white rounded-xl shadow overflow-hidden max-w-4xl mx-auto">
                 {template.sections.length === 0
                   ? <div className="flex items-center justify-center h-40 text-gray-400 text-sm">セクションがまだありません</div>
-                  : <FreeTemplateRenderer template={template} sections={[]} t={previewTheme} showPlaceholders />
+                  : previewTheme && <FreeTemplateRenderer template={template} sections={[]} t={previewTheme} showPlaceholders />
                 }
               </div>
             </div>

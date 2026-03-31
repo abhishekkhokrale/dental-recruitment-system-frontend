@@ -4,8 +4,6 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   LandingPageRenderer,
   DEFAULT_SECTIONS,
-  THEMES,
-  TEMPLATES,
   type LPTheme,
   type PageSection,
   type ThemeId,
@@ -569,6 +567,7 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
   const [themeId, setThemeId] = useState<ThemeId>('clean')
   const [customTheme, setCustomTheme] = useState<Partial<LPTheme>>({})
   const [adminThemes, setAdminThemes] = useState<Record<string, LPTheme>>({})
+  const [allThemes, setAllThemes] = useState<Record<string, LPTheme>>({})
   const [adminTemplates, setAdminTemplates] = useState<Record<string, FreeTemplate>>({})
   const [activeFreeTemplate, setActiveFreeTemplate] = useState<FreeTemplate | undefined>(undefined)
 
@@ -612,16 +611,16 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
     setSections(prev => prev.map(s => s.id === id ? { ...s, content: { ...s.content, ...patch } } : s))
   }, [])
 
-  // Load admin-created themes and templates on mount
+  // Load all themes and templates on mount
   useEffect(() => {
-    loadAllThemes().then(setAdminThemes).catch(() => {})
+    loadAllThemes()
+      .then((themes) => {
+        setAllThemes(themes)
+        setAdminThemes(themes)
+      })
+      .catch(() => {})
     loadAllTemplates().then(setAdminTemplates).catch(() => {})
   }, [])
-
-  // Keep built-in and admin themes separate — admin IDs never overwrite built-ins
-  const allThemes = { ...THEMES, ...Object.fromEntries(
-    Object.entries(adminThemes).filter(([id]) => !(id in THEMES))
-  ) }
 
   const toggleVisible = (id: string) => {
     setSections(prev => prev.map(s => s.id === id ? { ...s, visible: !s.visible } : s))
@@ -700,7 +699,7 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
             onClick={() => setShowTemplateGallery(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
           >
-            🖼 {TEMPLATES[templateId]?.nameJa ?? templateId}
+            🖼 {adminTemplates[templateId]?.nameJa ?? templateId}
             <span className="text-gray-400">▾</span>
           </button>
         </div>
@@ -713,8 +712,8 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
             onClick={() => setShowThemeGallery(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition"
           >
-            <span className="w-3 h-3 rounded-full inline-block" style={{ background: THEMES[themeId]?.accent }} />
-            {THEMES[themeId]?.nameJa ?? themeId}
+            <span className="w-3 h-3 rounded-full inline-block" style={{ background: allThemes[themeId]?.accent }} />
+            {allThemes[themeId]?.nameJa ?? themeId}
             <span className="text-gray-400">▾</span>
           </button>
           <button
@@ -870,7 +869,7 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
             <div className="p-4 space-y-5 flex-1">
               {/* Base theme indicator */}
               <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-                ベーステーマ: <strong>{THEMES[themeId]?.nameJa}</strong>
+                ベーステーマ: <strong>{allThemes[themeId]?.nameJa}</strong>
               </div>
 
               {([
@@ -881,7 +880,7 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
                 { key: 'sectionAltBg',  label: 'セクション背景色',    hint: '交互背景' },
                 { key: 'cardBg',        label: 'カード背景色',        hint: '' },
               ] as { key: keyof LPTheme; label: string; hint: string }[]).map(({ key, label, hint }) => {
-                const base = THEMES[themeId]?.[key] as string ?? '#ffffff'
+                const base = allThemes[themeId]?.[key] as string ?? '#ffffff'
                 const current = (customTheme[key] as string) ?? base
                 return (
                   <div key={key}>
@@ -932,16 +931,16 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
               <button onClick={() => setShowTemplateGallery(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
 
-            {/* Built-in templates */}
-            <div className="px-6 pt-4 pb-2">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">標準テンプレート</p>
+            {/* All templates from DB */}
+            <div className="px-6 pt-4 pb-6">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">テンプレート</p>
               <div className="grid grid-cols-3 gap-4">
-                {(Object.entries(TEMPLATES) as [TemplateId, typeof TEMPLATES[TemplateId]][]).map(([id, tmpl]) => {
+                {Object.entries(adminTemplates).map(([id, tmpl]) => {
                   const isActive = templateId === id
                   return (
                     <button
                       key={id}
-                      onClick={() => { setTemplateId(id); setActiveFreeTemplate(undefined); setShowTemplateGallery(false) }}
+                      onClick={() => { setTemplateId(id as TemplateId); setActiveFreeTemplate(tmpl); setShowTemplateGallery(false) }}
                       className={['rounded-xl overflow-hidden border-2 transition text-left hover:shadow-md', isActive ? 'border-cyan-500 shadow-md' : 'border-gray-200 hover:border-gray-300'].join(' ')}
                     >
                       <div className="bg-gray-50 p-3 space-y-1.5 h-36 flex flex-col justify-center">
@@ -979,59 +978,33 @@ export default function LandingPageBuilder({ clinicName = '' }: { clinicName?: s
                             </div>
                           </>
                         )}
+                        {id !== 'modern' && id !== 'professional' && id !== 'boutique' && (
+                          <div className="flex flex-col gap-2">
+                            {tmpl.sections.slice(0, 3).map((s, i) => (
+                              <div key={s.id} className="flex gap-1" style={{ opacity: 1 - i * 0.25 }}>
+                                {s.columns.map((col) => (
+                                  <div key={col.id} className="flex-1 h-4 rounded bg-gray-200" />
+                                ))}
+                              </div>
+                            ))}
+                            {tmpl.sections.length === 0 && (
+                              <div className="text-center text-[10px] text-gray-400">空のテンプレート</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="px-3 py-3 bg-white">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-sm font-bold text-gray-800">{tmpl.nameJa}</span>
                           {isActive && <span className="text-xs text-cyan-600 font-semibold">✓ 選択中</span>}
                         </div>
-                        <p className="text-xs text-gray-400">{tmpl.desc}</p>
+                        <p className="text-xs text-gray-400">{tmpl.desc || `${tmpl.sections.length} セクション`}</p>
                       </div>
                     </button>
                   )
                 })}
               </div>
             </div>
-
-            {/* Admin-created free templates */}
-            {Object.keys(adminTemplates).length > 0 && (
-              <div className="px-6 pt-2 pb-6">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">カスタムテンプレート</p>
-                <div className="grid grid-cols-3 gap-4">
-                  {Object.entries(adminTemplates).map(([id, tmpl]) => {
-                    const isActive = templateId === id
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => { setTemplateId(id as TemplateId); setActiveFreeTemplate(tmpl); setShowTemplateGallery(false) }}
-                        className={['rounded-xl overflow-hidden border-2 transition text-left hover:shadow-md', isActive ? 'border-cyan-500 shadow-md' : 'border-gray-200 hover:border-gray-300'].join(' ')}
-                      >
-                        {/* Generic free-template preview */}
-                        <div className="bg-gray-50 p-3 h-36 flex flex-col justify-center gap-2">
-                          {tmpl.sections.slice(0, 3).map((s, i) => (
-                            <div key={s.id} className="flex gap-1" style={{ opacity: 1 - i * 0.25 }}>
-                              {s.columns.map((col) => (
-                                <div key={col.id} className="flex-1 h-4 rounded bg-gray-200" />
-                              ))}
-                            </div>
-                          ))}
-                          {tmpl.sections.length === 0 && (
-                            <div className="text-center text-[10px] text-gray-400">空のテンプレート</div>
-                          )}
-                        </div>
-                        <div className="px-3 py-3 bg-white">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-sm font-bold text-gray-800">{tmpl.nameJa}</span>
-                            {isActive && <span className="text-xs text-cyan-600 font-semibold">✓ 選択中</span>}
-                          </div>
-                          <p className="text-xs text-gray-400">{tmpl.desc || `${tmpl.sections.length} セクション`}</p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
