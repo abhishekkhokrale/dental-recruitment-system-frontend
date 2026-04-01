@@ -47,89 +47,6 @@ export interface LPTheme {
   badgeText: string
 }
 
-export const THEMES: Record<string, LPTheme> = {
-  clean: {
-    nameJa: '清潔感',
-    topbarBg: '#0891b2', topbarText: '#ffffff',
-    headerBg: '#ffffff', headerText: '#1e293b', headerBorder: '#e2e8f0', logoColor: '#0891b2',
-    accent: '#0891b2', accentLight: '#e0f2fe', accentText: '#0e7490',
-    heroBtnBg: '#0891b2', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#f8fafc', cardBg: '#f0f9ff', cardIconBg: '#cffafe',
-    dividerColor: '#bae6fd', footerBg: '#0f172a', footerText: '#94a3b8', footerBorder: '#1e293b',
-    badgeBg: '#e0f2fe', badgeText: '#0e7490',
-  },
-  luxury: {
-    nameJa: '高級感',
-    topbarBg: '#1a1025', topbarText: '#c9a96e',
-    headerBg: '#100c1c', headerText: '#e8e0d5', headerBorder: '#2a1f3d', logoColor: '#c9a96e',
-    accent: '#c9a96e', accentLight: '#2a1f3d', accentText: '#c9a96e',
-    heroBtnBg: '#c9a96e', heroBtnText: '#100c1c', heroBtn2Border: 'rgba(201,169,110,0.6)',
-    sectionAltBg: '#120e1e', cardBg: '#1e1530', cardIconBg: '#2a1f3d',
-    dividerColor: '#3d2f5a', footerBg: '#080512', footerText: '#5c5070', footerBorder: '#1a1025',
-    badgeBg: '#2a1f3d', badgeText: '#c9a96e',
-  },
-  warm: {
-    nameJa: '温もり',
-    topbarBg: '#065f46', topbarText: '#d1fae5',
-    headerBg: '#fffbf0', headerText: '#1c1917', headerBorder: '#fde68a', logoColor: '#065f46',
-    accent: '#059669', accentLight: '#ecfdf5', accentText: '#065f46',
-    heroBtnBg: '#065f46', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#fffbf0', cardBg: '#f0fdf4', cardIconBg: '#d1fae5',
-    dividerColor: '#a7f3d0', footerBg: '#1c1917', footerText: '#a8a29e', footerBorder: '#292524',
-    badgeBg: '#d1fae5', badgeText: '#065f46',
-  },
-  stylish: {
-    nameJa: 'スタイリッシュ',
-    topbarBg: '#18181b', topbarText: '#a1a1aa',
-    headerBg: '#ffffff', headerText: '#18181b', headerBorder: '#e4e4e7', logoColor: '#7c3aed',
-    accent: '#7c3aed', accentLight: '#f5f3ff', accentText: '#6d28d9',
-    heroBtnBg: '#7c3aed', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#fafafa', cardBg: '#faf5ff', cardIconBg: '#ede9fe',
-    dividerColor: '#ddd6fe', footerBg: '#18181b', footerText: '#71717a', footerBorder: '#27272a',
-    badgeBg: '#ede9fe', badgeText: '#6d28d9',
-  },
-  sakura: {
-    nameJa: '桜ピンク',
-    topbarBg: '#9d174d', topbarText: '#fce7f3',
-    headerBg: '#fff1f2', headerText: '#1c1917', headerBorder: '#fecdd3', logoColor: '#be185d',
-    accent: '#be185d', accentLight: '#fce7f3', accentText: '#9d174d',
-    heroBtnBg: '#be185d', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#fff1f2', cardBg: '#fdf2f8', cardIconBg: '#fce7f3',
-    dividerColor: '#fbcfe8', footerBg: '#1c1917', footerText: '#a8a29e', footerBorder: '#292524',
-    badgeBg: '#fce7f3', badgeText: '#9d174d',
-  },
-  ocean: {
-    nameJa: '大海原',
-    topbarBg: '#0c4a6e', topbarText: '#bae6fd',
-    headerBg: '#f0f9ff', headerText: '#0c4a6e', headerBorder: '#bae6fd', logoColor: '#0369a1',
-    accent: '#0369a1', accentLight: '#e0f2fe', accentText: '#075985',
-    heroBtnBg: '#0369a1', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#f0f9ff', cardBg: '#e0f2fe', cardIconBg: '#bae6fd',
-    dividerColor: '#7dd3fc', footerBg: '#082f49', footerText: '#7dd3fc', footerBorder: '#0c4a6e',
-    badgeBg: '#e0f2fe', badgeText: '#075985',
-  },
-  sunset: {
-    nameJa: '夕焼け',
-    topbarBg: '#9a3412', topbarText: '#fed7aa',
-    headerBg: '#fff7ed', headerText: '#1c1917', headerBorder: '#fed7aa', logoColor: '#ea580c',
-    accent: '#ea580c', accentLight: '#fff7ed', accentText: '#c2410c',
-    heroBtnBg: '#ea580c', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#fff7ed', cardBg: '#ffedd5', cardIconBg: '#fed7aa',
-    dividerColor: '#fdba74', footerBg: '#1c1917', footerText: '#a8a29e', footerBorder: '#292524',
-    badgeBg: '#ffedd5', badgeText: '#c2410c',
-  },
-  monochrome: {
-    nameJa: 'モノクロ',
-    topbarBg: '#18181b', topbarText: '#d4d4d8',
-    headerBg: '#ffffff', headerText: '#18181b', headerBorder: '#e4e4e7', logoColor: '#52525b',
-    accent: '#3f3f46', accentLight: '#f4f4f5', accentText: '#27272a',
-    heroBtnBg: '#18181b', heroBtnText: '#ffffff', heroBtn2Border: 'rgba(255,255,255,0.7)',
-    sectionAltBg: '#f4f4f5', cardBg: '#fafafa', cardIconBg: '#e4e4e7',
-    dividerColor: '#d4d4d8', footerBg: '#09090b', footerText: '#71717a', footerBorder: '#18181b',
-    badgeBg: '#e4e4e7', badgeText: '#27272a',
-  },
-}
-
 export type ThemeId = string
 
 // ─── Default sections ────────────────────────────────────────────────────────
@@ -635,8 +552,7 @@ export function LandingPageRenderer({
   extraThemes?: Record<string, LPTheme>
   freeTemplate?: FreeTemplate
 }) {
-  const themeMap = { ...THEMES, ...extraThemes }
-  const t = { ...(themeMap[themeId] ?? THEMES.clean), ...customTheme }
+  const t = { ...(extraThemes[themeId] ?? Object.values(extraThemes)[0] ?? {} as LPTheme), ...customTheme }
 
   if (templateId.startsWith('free_') && freeTemplate) {
     return <FreeTemplateRenderer template={freeTemplate} sections={sections} t={t} />

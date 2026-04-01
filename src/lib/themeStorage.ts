@@ -1,59 +1,28 @@
-// IndexedDB storage for custom LP themes (admin-created)
+// Theme storage — backed by PostgreSQL via /api/lp/themes
+// Replaces the previous IndexedDB implementation; public interface is unchanged.
 import type { LPTheme } from '@/components/clinic/LandingPageRenderer'
 
-const DB_NAME = 'bluejobs_themes'
-const STORE   = 'themes'
-const VERSION = 1
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, VERSION)
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE)
-    req.onsuccess = () => resolve(req.result)
-    req.onerror   = () => reject(req.error)
+export async function saveTheme(id: string, theme: LPTheme, pickerValues?: Record<string, string>): Promise<void> {
+  const res = await fetch('/api/lp/themes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, theme, pickerValues }),
   })
-}
-
-export async function saveTheme(id: string, theme: LPTheme): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite')
-    const req = tx.objectStore(STORE).put(theme, id)
-    req.onsuccess = () => resolve()
-    req.onerror   = () => reject(req.error)
-  })
+  if (!res.ok) throw new Error(`saveTheme failed: ${res.status}`)
 }
 
 export async function loadAllThemes(): Promise<Record<string, LPTheme>> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx     = db.transaction(STORE, 'readonly')
-    const result: Record<string, LPTheme> = {}
-    const req    = tx.objectStore(STORE).openCursor()
-    req.onsuccess = (e) => {
-      const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>).result
-      if (cursor) {
-        result[cursor.key as string] = cursor.value as LPTheme
-        cursor.continue()
-      } else {
-        resolve(result)
-      }
-    }
-    req.onerror = () => reject(req.error)
-  })
+  const res = await fetch('/api/lp/themes')
+  if (!res.ok) throw new Error(`loadAllThemes failed: ${res.status}`)
+  return res.json()
 }
 
 export async function deleteTheme(id: string): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite')
-    const req = tx.objectStore(STORE).delete(id)
-    req.onsuccess = () => resolve()
-    req.onerror   = () => reject(req.error)
-  })
+  const res = await fetch(`/api/lp/themes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`deleteTheme failed: ${res.status}`)
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers (pure — no DB dependency) ─────────────────────────────────────────
 
 function getLuminance(hex: string): number {
   const r = parseInt(hex.slice(1, 3), 16) / 255

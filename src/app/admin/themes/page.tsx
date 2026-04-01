@@ -1,10 +1,8 @@
 'use client'
 
 import { useEffect, useId, useState } from 'react'
-import { THEMES } from '@/components/clinic/LandingPageRenderer'
 import type { LPTheme } from '@/components/clinic/LandingPageRenderer'
 import { saveTheme, loadAllThemes, deleteTheme, buildTheme } from '@/lib/themeStorage'
-
 // ── Form state ────────────────────────────────────────────────────────────────
 interface ThemeForm {
   nameJa:       string
@@ -74,7 +72,7 @@ function ColorField({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminThemesPage() {
-  const [customThemes, setCustomThemes] = useState<Record<string, LPTheme>>({})
+  const [allThemes, setAllThemes] = useState<Record<string, LPTheme>>({})
   const [loading, setLoading] = useState(true)
 
   // modal
@@ -88,7 +86,7 @@ export default function AdminThemesPage() {
 
   useEffect(() => {
     loadAllThemes()
-      .then(setCustomThemes)
+      .then(setAllThemes)
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -119,14 +117,14 @@ export default function AdminThemesPage() {
     const id    = editingId ?? randomId()
     const theme = buildTheme(form.nameJa, form.accent, form.topbarBg, form.headerBg, form.footerBg, form.cardBg, form.sectionAltBg)
     await saveTheme(id, theme)
-    setCustomThemes(prev => ({ ...prev, [id]: theme }))
+    setAllThemes(prev => ({ ...prev, [id]: theme }))
     setShowModal(false)
     setSaving(false)
   }
 
   async function handleDelete(id: string) {
     await deleteTheme(id)
-    setCustomThemes(prev => {
+    setAllThemes(prev => {
       const next = { ...prev }
       delete next[id]
       return next
@@ -156,24 +154,24 @@ export default function AdminThemesPage() {
         </button>
       </div>
 
-      {/* Custom themes */}
+      {/* All themes */}
       <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">カスタムテーマ ({Object.keys(customThemes).length}件)</h2>
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">テーマ一覧 ({Object.keys(allThemes).length}件)</h2>
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-gray-400 py-6">
             <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
             読み込み中…
           </div>
-        ) : Object.keys(customThemes).length === 0 ? (
+        ) : Object.keys(allThemes).length === 0 ? (
           <div className="border-2 border-dashed border-gray-200 rounded-2xl py-12 text-center">
-            <p className="text-gray-400 text-sm">まだカスタムテーマがありません</p>
+            <p className="text-gray-400 text-sm">まだテーマがありません</p>
             <button onClick={openCreate} className="mt-3 text-sm text-orange-600 font-semibold hover:underline">
               最初のテーマを作成する →
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(customThemes).map(([id, theme]) => (
+            {Object.entries(allThemes).map(([id, theme]) => (
               <div key={id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <ThemeStrip theme={theme} />
                 <div className="p-4">
@@ -198,22 +196,6 @@ export default function AdminThemesPage() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* Built-in themes (read-only) */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">組み込みテーマ ({Object.keys(THEMES).length}件) — 読み取り専用</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {Object.entries(THEMES).map(([id, theme]) => (
-            <div key={id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden opacity-70">
-              <ThemeStrip theme={theme} />
-              <div className="px-3 py-2.5">
-                <p className="text-sm font-semibold text-gray-700">{theme.nameJa}</p>
-                <p className="text-xs text-gray-400 font-mono">{theme.accent}</p>
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* Create / Edit modal */}

@@ -1,17 +1,5 @@
-// IndexedDB storage for admin-created free-form page templates
-
-const DB_NAME = 'bluejobs_templates'
-const STORE   = 'templates'
-const VERSION = 1
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, VERSION)
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE)
-    req.onsuccess = () => resolve(req.result)
-    req.onerror   = () => reject(req.error)
-  })
-}
+// Template storage — backed by PostgreSQL via /api/lp/templates
+// Replaces the previous IndexedDB implementation; public interface is unchanged.
 
 // ── Block types ───────────────────────────────────────────────────────────────
 
@@ -24,6 +12,9 @@ export type ImageSlot =
   | 'gallery-1'
   | 'gallery-2'
   | 'gallery-3'
+  | 'gallery-4'
+  | 'gallery-5'
+  | 'gallery-6'
 
 export interface Block {
   id:      string
@@ -100,45 +91,29 @@ export const IMAGE_SLOTS: { slot: ImageSlot; label: string }[] = [
   { slot: 'gallery-1', label: 'ギャラリー 1' },
   { slot: 'gallery-2', label: 'ギャラリー 2' },
   { slot: 'gallery-3', label: 'ギャラリー 3' },
+  { slot: 'gallery-4', label: 'ギャラリー 4' },
+  { slot: 'gallery-5', label: 'ギャラリー 5' },
+  { slot: 'gallery-6', label: 'ギャラリー 6' },
 ]
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 export async function saveTemplate(id: string, tpl: FreeTemplate): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite')
-    const req = tx.objectStore(STORE).put(tpl, id)
-    req.onsuccess = () => resolve()
-    req.onerror   = () => reject(req.error)
+  const res = await fetch('/api/lp/templates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, template: tpl }),
   })
+  if (!res.ok) throw new Error(`saveTemplate failed: ${res.status}`)
 }
 
 export async function loadAllTemplates(): Promise<Record<string, FreeTemplate>> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx     = db.transaction(STORE, 'readonly')
-    const result: Record<string, FreeTemplate> = {}
-    const req    = tx.objectStore(STORE).openCursor()
-    req.onsuccess = (e) => {
-      const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>).result
-      if (cursor) {
-        result[cursor.key as string] = cursor.value as FreeTemplate
-        cursor.continue()
-      } else {
-        resolve(result)
-      }
-    }
-    req.onerror = () => reject(req.error)
-  })
+  const res = await fetch('/api/lp/templates')
+  if (!res.ok) throw new Error(`loadAllTemplates failed: ${res.status}`)
+  return res.json() as Promise<Record<string, FreeTemplate>>
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readwrite')
-    const req = tx.objectStore(STORE).delete(id)
-    req.onsuccess = () => resolve()
-    req.onerror   = () => reject(req.error)
-  })
+  const res = await fetch(`/api/lp/templates/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`deleteTemplate failed: ${res.status}`)
 }
