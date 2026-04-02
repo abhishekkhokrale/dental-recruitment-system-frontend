@@ -6,18 +6,25 @@ declare global {
   var __pgPool: Pool | undefined
 }
 
-function createPool(): Pool {
+function getPool(): Pool {
+  if (globalThis.__pgPool) return globalThis.__pgPool
+
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
     throw new Error('DATABASE_URL environment variable is not set')
   }
-  return new Pool({ connectionString })
-}
 
-const pool: Pool = globalThis.__pgPool ?? createPool()
-
-if (process.env.NODE_ENV !== 'production') {
+  const pool = new Pool({ connectionString })
   globalThis.__pgPool = pool
+  return pool
 }
+
+// Proxy defers pool creation until first use, so the module can be imported
+// during build without DATABASE_URL being set.
+const pool = new Proxy({} as Pool, {
+  get(_target, prop) {
+    return (getPool() as unknown as Record<string | symbol, unknown>)[prop]
+  },
+})
 
 export default pool

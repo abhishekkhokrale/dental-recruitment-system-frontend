@@ -71,7 +71,13 @@ export async function GET(request: NextRequest) {
       saveUser(user)
     }
 
-    await createSession(user.id)
+    await createSession({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: access_token,
+    })
     return NextResponse.redirect(new URL('/profile', request.url))
   } catch {
     return NextResponse.redirect(new URL('/login?error=oauth_failed', request.url))

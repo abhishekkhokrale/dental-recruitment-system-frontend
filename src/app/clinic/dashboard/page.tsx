@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { formatDate } from '@/lib/utils/format'
 import Badge, { getApplicationStatusVariant } from '@/components/ui/Badge'
+import type { ApplicationStatus } from '@/lib/types/application'
 
 export const metadata: Metadata = {
   title: 'ダッシュボード | クリニック',
@@ -19,7 +20,7 @@ interface ClinicStats {
     id: string
     seekerName: string
     jobTitle: string
-    status: string
+    status: ApplicationStatus
     appliedAt: string
   }[]
   activeJobsList: {
