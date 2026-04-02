@@ -13,7 +13,7 @@ const navLinks = [
 
 export default async function Header() {
   const session = await getSession()
-  const user = session ? findUserById(session.userId) : null
+  const user = session ? findUserById(session.id) : null
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
